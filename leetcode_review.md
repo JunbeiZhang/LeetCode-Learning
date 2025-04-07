@@ -462,6 +462,7 @@ class RandomizedSet:
 ---
 
 # 238. 除自身以外数组的乘积
+[238 LeetCode链接](https://leetcode.cn/problems/product-of-array-except-self)
 
 给你一个整数数组 `nums`，返回一个数组 `answer`，其中 `answer[i]` 等于 `nums` 中除 `nums[i]` 之外其余各元素的乘积。
 
@@ -472,31 +473,29 @@ class RandomizedSet:
 输出: [24,12,8,6]
 
 ```python
-class Solution(object):
-    def productExceptSelf(self, nums):
-        """
-        :type nums: List[int]
-        :rtype: List[int]
-        """
+class Solution:
+    def productExceptSelf(self, nums: List[int]) -> List[int]:
         n = len(nums)
-        answer = [1] * n
+        res = [1] * n
+        right = left = 1
 
-        left_product = 1
         for i in range(n):
-            answer[i] = left_product
-            left_product *= nums[i]
-
-        right_product = 1
-        for i in range(n - 1, -1, -1):
-            answer[i] *= right_product
-            right_product *= nums[i]
+            res[i] = left
+            left *= nums[i]
         
-        return answer
+        for j in range(n-1, -1, -1):
+            res[j] *= right
+            right *= nums[j]
+
+        return res
 ```
+- 对于这个题，涉及到前缀后缀积。一个自然的想法是对于 nums[i] 之前和之后的分别乘起来，最终 answer[i] = prefix[i] * suffix[i]。
+- 如果要求`O(1)`空间复杂度，就可以直接遍历两次数组，维护 left 和 right。left是正向遍历的时候该元素左侧的乘积，赋值给 res[i]；right是反向遍历时右侧的乘积，乘给 res[i]。这样就能得到两侧乘积了。
 
 ---
 
 # 134. 加油站
+[加油站 LeetCode链接](https://leetcode.cn/problems/gas-station/description)
 
 在一条环路上有 `n` 个加油站，其中第 `i` 个加油站有汽油 `gas[i]` 升。
 
@@ -517,24 +516,20 @@ class Solution(object):
 因此，3 可为起始索引。
 
 ```python
-class Solution(object):
-    def canCompleteCircuit(self, gas, cost):
-        """
-        :type gas: List[int]
-        :type cost: List[int]
-        :rtype: int
-        """
+class Solution:
+    def canCompleteCircuit(self, gas: List[int], cost: List[int]) -> int:
         if sum(gas) < sum(cost):
             return -1
         
-        start = 0
-        cur = 0
+        tank = 0    # 当前油箱容量，即cost - gas
+        start = 0   # 因为要找合法的起点，所以维护start
+        
         for i in range(len(gas)):
-            cur += gas[i] - cost[i]
-
-            if cur < 0:
+            tank += gas[i] - cost[i]
+            if tank < 0:    # 如果到不了对应的加油站就放弃这个潜在解
+                            # 去看下一个节点当起点能不能行
+                tank = 0
                 start = i + 1
-                cur = 0
 
         return start
 ```
@@ -542,6 +537,8 @@ class Solution(object):
 ---
 
 # 135. 分发糖果
+
+[分发糖果 LeetCode链接](https://leetcode.cn/problems/candy)
 
 有 `n` 个孩子站成一排。给你一个整数数组 `ratings` 表示每个孩子的评分。
 
@@ -564,26 +561,311 @@ class Solution(object):
      第三个孩子只得到 1 颗糖果，这满足题面中的两个条件。
 
 ```python
-class Solution(object):
-    def candy(self, ratings):
-        """
-        :type ratings: List[int]
-        :rtype: int
-        """
+class Solution:
+    def candy(self, ratings: List[int]) -> int:
         n = len(ratings)
-        candies = [1] * n  # 每个孩子至少 1 颗糖
+        candies = [1] * n
 
-        # 从左到右遍历，保证右边比左边评分高时糖果数多
         for i in range(1, n):
-            if ratings[i] > ratings[i - 1]:
-                candies[i] = candies[i - 1] + 1
+            if ratings[i] > ratings[i-1]:
+                candies[i] = candies[i-1] + 1
+        
+        for i in range(n-2, -1, -1):
+            if ratings[i] > ratings[i+1] and candies[i] <= candies[i+1]:
+                candies[i] = candies[i+1] + 1
+        
+        return sum(candies)
 
-        # 从右到左遍历，保证左边比右边评分高时糖果数多
-        for i in range(n - 2, -1, -1):
-            if ratings[i] > ratings[i + 1] and candies[i] <= candies[i + 1]:
-                candies[i] = candies[i + 1] + 1
 
-        return sum(candies)  # 计算最少需要的糖果数
+```
+>其实这个题只需要注意两点: 
+1.反向遍历的时候要注意 `candies[i] <= candies[i+1]`这个判断, 来确保本来是正确的分发结果又加了一个
+2.在增加糖果的时候要注意是要比`被比较`的那一个孩子的糖果多，而不是自身加一个就行了
+
+---
+
+# 42. 接雨水
+
+[接雨水 Leetcode链接](https://leetcode.cn/problems/trapping-rain-water)
+
+示例 1：
+<div align="center">
+  <img src="figure/rainwatertrap.png" width="480"><br>
+  <b>图 5-2 流失预测模型的SHAP特征重要性条形图</b>
+</div>
+
+> 输入：height = [0,1,0,2,1,0,1,3,2,1,2,1]
+输出：6
+解释：上面是由数组 [0,1,0,2,1,0,1,3,2,1,2,1] 表示的高度图，在这种情况下，可以接 6 个单位的雨水（蓝色部分表示雨水）。
+
+示例 2：
+
+>输入：height = [4,2,0,3,2,5]
+输出：9
+
+```python
+# 动态规划
+class Solution(object):
+    def trap(self, height):
+        n = len(height)
+        if n < 3:
+            return 0
+
+        rain = 0
+        left_max = [height[0]] * n
+        for i in range(1,n):
+            left_max[i] = max(left_max[i-1], height[i])
+
+        right_max = [height[n-1]] * n
+        for i in range(n-2,-1,-1):
+            right_max[i] = max(right_max[i+1], height[i])
+
+        for i in range(1,n-1):
+            rain += min(left_max[i], right_max[i]) - height[i]
+        
+        return rain
+
+# 双指针
+class Solution:
+    def trap(self, height: List[int]) -> int:
+        n = len(height)
+        left, right = 0, n-1
+        left_max = right_max = 0
+        res = 0
+        
+        while left < right:
+            if height[left] < height[right]:
+                if height[left] < left_max:
+                    res += left_max - height[left]
+                else:
+                    left_max = max(left_max, height[left])
+                left += 1
+            else:
+                if height[right] < right_max:
+                    res += right_max - height[right]
+                else:
+                    right_max = max(right_max, height[right])
+                right -= 1
+        
+        return res
+```
+
+对于接雨水问题的核心理解如下：
+
+1. 在双指针解法中：
+   - 每次比较 `height[left]` 和 `height[right]`：
+     - 如果 `left` 比 `right` 小，说明此时的 `left` 是限制因素；
+       - 如果 `height[left] < left_max`，则可接水：`left_max - height[left]`
+     - 反之，`right` 是限制因素；
+       - 如果 `height[right] < right_max`，则可接水：`right_max - height[right]`
+
+2. 在动态规划解法中：
+   - 预处理出每个位置的 `left_max[i]` 和 `right_max[i]`
+   - 然后统一遍历，用 `min(left_max[i], right_max[i]) - height[i]` 来计算每个位置的储水量
+
+DP 本质上就是把双指针中动态维护的最大值提前存好，最后集中计算。
+
+---
+
+# 13. 罗马数字转整数
+
+[罗马数字转整数 LeetCode链接](https://leetcode.cn/problems/roman-to-integer)
+
+罗马数字包含以下七种字符: I， V， X， L，C，D 和 M。
+
+字符          数值
+I             1
+V             5
+X             10
+L             50
+C             100
+D             500
+M             1000
+例如， 罗马数字 2 写做 II ，即为两个并列的 1 。12 写做 XII ，即为 X + II 。 27 写做  XXVII, 即为 XX + V + II 。
+
+通常情况下，罗马数字中小的数字在大的数字的右边。但也存在特例，例如 4 不写做 IIII，而是 IV。数字 1 在数字 5 的左边，所表示的数等于大数 5 减小数 1 得到的数值 4 。同样地，数字 9 表示为 IX。这个特殊的规则只适用于以下六种情况：
+
+- I 可以放在 V (5) 和 X (10) 的左边，来表示 4 和 9。
+- X 可以放在 L (50) 和 C (100) 的左边，来表示 40 和 90。 
+- C 可以放在 D (500) 和 M (1000) 的左边，来表示 400 和 900。
+给定一个罗马数字，将其转换成整数。
+
+示例 1:
+
+> 输入: s = "III"
+输出: 3
+
+示例 2:
+
+>输入: s = "MCMXCIV"
+输出: 1994
+解释: M = 1000, CM = 900, XC = 90, IV = 4.
+
+```python
+class Solution:
+    def romanToInt(self, s: str) -> int:
+        roman_map = {
+            'I':1,
+            'V':5,
+            'X':10,
+            'L':50,
+            'C':100,
+            'D':500,
+            'M':1000
+        }
+        res = 0
+
+        for i in range(len(s)-1):
+            if roman_map[s[i]] < roman_map[s[i+1]]:
+                res -= roman_map[s[i]]
+            else:
+                res += roman_map[s[i]]
+        
+        return res + roman_map[s[-1]]
+```
+
+这个问题最值得注意的就是不要复杂化，题目要求所有的罗马数字都是合法的，也就是大的在前小的在后，小的在前的唯一情况就是那几个减法的`4,9,40,90,400,900`，找到减法只需要判断前一个和后一个的值大小就行。
+
+---
+
+# 12. 整数转罗马数字
+
+[LeetCode链接](https://leetcode.cn/problems/integer-to-roman)
+
+七个不同的符号代表罗马数字，其值如下：
+
+|符号|值|
+|---|---|
+|I|	1|
+|V|	5|
+|X|	10|
+|L|	50|
+|C|	100|
+|D|	500|
+|M|	1000|
+
+罗马数字是通过添加从最高到最低的小数位值的转换而形成的。将小数位值转换为罗马数字有以下规则：
+
+- 如果该值不是以 4 或 9 开头，请选择可以从输入中减去的最大值的符号，将该符号附加到结果，减去其值，然后将其余部分转换为罗马数字。
+- 如果该值以 4 或 9 开头，使用 减法形式，表示从以下符号中减去一个符号，例如 4 是 5 (V) 减 1 (I): IV ，9 是 10 (X) 减 1 (I)：IX。仅使用以下减法形式：4 (IV)，9 (IX)，40 (XL)，90 (XC)，400 (CD) 和 900 (CM)。
+- 只有 10 的次方（I, X, C, M）最多可以连续附加 3 次以代表 10 的倍数。你不能多次附加 5 (V)，50 (L) 或 500 (D)。如果需要将符号附加4次，请使用 减法形式。
+
+给定一个整数，将其转换为罗马数字。
+
+示例 ：
+
+>输入：num = 3749
+输出： "MMMDCCXLIX"
+解释：
+3000 = MMM 由于 1000 (M) + 1000 (M) + 1000 (M)
+ 700 = DCC 由于 500 (D) + 100 (C) + 100 (C)
+  40 = XL 由于 50 (L) 减 10 (X)
+   9 = IX 由于 10 (X) 减 1 (I)
+注意：49 不是 50 (L) 减 1 (I) 因为转换是基于小数位
+
+```python
+class Solution(object):
+    def replace_rom(self, n, four, nine, five, one, roman_num):
+        if n == 4:
+            roman_num += four
+        elif n == 9:
+            roman_num += nine
+        elif n == 5:
+            roman_num += five
+        elif n < 5:
+            roman_num += n * one
+        else:
+            roman_num += roman3 + (n - 5) * roman4
+
+        return roman_num
+
+
+    def intToRoman(self, num):
+        """
+        :type num: int
+        :rtype: str
+        """
+        roman_num = ""
+        thousands = num // 1000
+        hundreds = (num % 1000) // 100
+        tens = (num % 100) // 10
+        ones = num % 10
+
+        roman_num += thousands * "M"
+
+        roman_num = self.replace_rom(hundreds,'CD','CM','D','C',roman_num)
+        roman_num = self.replace_rom(tens,'XL','XC','L','X',roman_num)
+        roman_num = self.replace_rom(ones,'IV','IX','V','I',roman_num)
+        
+        return roman_num
+```
+```Python
+# 解题思路中我觉得比较好的一个
+class Solution(object):
+    def intToRoman(self, num):
+        roman_map = {
+            'M':1000,
+            'CM':900,
+            'D':500,
+            'CD':400,
+            'C':100,
+            'XC':90,
+            'L':50,
+            'XL':40,
+            'X':10,
+            'IX':9,
+            'V':5,
+            'IV':4,
+            'I':1
+        }
+        res = ''
+
+        for roman in roman_map:
+            roman_num = roman_map[roman]
+            if num // roman_num != 0:
+                count = num // roman_num
+                res += roman * count
+                num %= roman_num
+
+        return res
+```
+
+这个题好像没有特别简略的方法，主要就是要枚举各个位数可能出现的情况
+
+---
+
+# 58. 最后一个单词的长度
+
+[LeetCode链接](https://leetcode.cn/problems/length-of-last-word)
+
+给你一个字符串 s，由若干单词组成，单词前后用一些空格字符隔开。返回字符串中 最后一个 单词的长度。
+
+单词 是指仅由字母组成、不包含任何空格字符的最大子字符串。
+
+ 
+
+示例 1：
+
+>输入：s = "Hello World"
+输出：5
+解释：最后一个单词是“World”，长度为 5。
+
+示例 2：
+
+>输入：s = "   fly me   to   the moon  "
+输出：4
+解释：最后一个单词是“moon”，长度为 4。
+
+示例 3：
+
+>输入：s = "luffy is still joyboy"
+输出：6
+解释：最后一个单词是长度为 6 的“joyboy”。
+
+```python
+class Solution:
+    def lengthOfLastWord(self, s: str) -> int:
+        return len(s.split()[-1])
 ```
 
 ---
